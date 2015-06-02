@@ -41,7 +41,7 @@ except:
     sys.exit(1)
 
 attemptTimeout = 15 # Time in seconds.
-musicDirectory = '/home/anton/musik/' # Directory in which music to play can be found.
+musicDirectory = '/home/eta/musik' # Directory in which music to play can be found.
 songList = readFiles(musicDirectory, "*.mp3")
 
 FNULL = open(os.devnull, 'w')
