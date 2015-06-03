@@ -6,16 +6,19 @@ import time
 import datetime
 
 import os
-import pipes
 from fnmatch import fnmatch
 import random
 
 import packetizer
 import subprocess
-import threading
+
+import alsaaudio
 
 piz = packetizer.Packetizer()
 NumRuns = 0
+CurrentSong=None
+
+mixer = alsaaudio.Mixer(control="PCM")
 
 def untilNone( fnc ):
     res = fnc()
@@ -64,17 +67,20 @@ while not connected:
 
 def startMplayer():
     print "Starting mplayer process."
-    MusicCmd = 'mplayer -really-quiet -idle -slave -softvol'
+    MusicCmd = 'mplayer -quiet -idle -slave -softvol'
     MusicProcess = subprocess.Popen(MusicCmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, shell=True)
     time.sleep(2) # Wait for mplayer to start properly.
     print "mplayer process started."
+    mixer.setvolume(0)
     return MusicProcess
 
+MusicProcess = startMplayer()
 
 def stop():
     global FNULL
-    for i in range(85, 0):
-        subprocess.call(['amixer', "-q set 'PCM' %d" % i], shell=True, stdout=FNULL)
+    for i in xrange(85,-1,-1):
+        time.sleep(0.3/5)
+        mixer.setvolume(i)
 
 def stopAudio():
     stop()
@@ -83,23 +89,24 @@ def stopAudio():
 def start():
     global FNULL
     time.sleep(0.7)
-    for i in range(50, 85):
-        subprocess.call(['amixer', "-q set 'PCM' %d" % i], shell=True, stdout=FNULL)
+    for i in xrange(50, 85):
+        time.sleep(0.3/5)
+        mixer.setvolume(i)
+
+
+def shellquote(s):
+    return "'" + s.replace("'", "\\'") + "'"
 
 def startAudio():
-    global NumRuns
+    global NumRuns, CurrentSong
     NumRuns = NumRuns + 1
     if MusicProcess.returncode != None:
         # mplayer has somehow crashed, reload!
         global MusicProcess
         MusicProcess = startMplayer()
-
-    MusicProcess.stdin.write("loadfile "+repr(random.choice(songList))+"\n")
+    CurrentSong = random.choice(songList)
+    MusicProcess.stdin.write("loadfile "+shellquote(CurrentSong)+"\n")
     start()
-
-
-MusicProcess = startMplayer()
-stopAudio();
 
 data = sock.recv( 1024 )
 
@@ -108,7 +115,6 @@ print "CAN Source: %s:%s" % (host, port)
 
 def printTimestamp():
     return datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
-
 
 oldState = 1;
 while len( data ):
@@ -119,8 +125,8 @@ while len( data ):
             newState = data[1]
             if newState != oldState: # Changed state
                 if newState == 0:
-                    print "%s - Closed" % printTimestamp()
                     startAudio()
+                    print "%s - Closed - Current song: %s" % (printTimestamp(), CurrentSong)
                 if newState == 1:
                     print "%s - Open - #%s" % (printTimestamp(), NumRuns)
                     stopAudio()
@@ -131,3 +137,4 @@ while len( data ):
 sock.close()
 
 sys.exit( 0 );
+
