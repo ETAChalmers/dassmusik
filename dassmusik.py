@@ -76,7 +76,7 @@ while len( data ):
     piz.push( data )
 
     for (id, ext, f, data) in untilNone( piz.pop ):
-        if id  == 0x14006401: #Toanod
+        if (id & 0xFFFFFF00)  == 0x14006400: # type=chn, chn=toanod 0x0064
             newState = data[1]
             if newState != oldState: # Changed state
                 if newState == 0:
